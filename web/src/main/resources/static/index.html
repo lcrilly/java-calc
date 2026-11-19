@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tally DS-812</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Michroma&display=swap">
+<style>
+  /* ---------- Page ground (follows viewer theme) ---------- */
+  :root {
+    --desk: #d9d4ca;
+    --desk-shade: #c8c2b6;
+    --caption: #5d574d;
+    --focus: #1f6fd1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --desk: #23211e;
+      --desk-shade: #1a1917;
+      --caption: #a49d90;
+      --focus: #7fb2ff;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --desk: #23211e;
+    --desk-shade: #1a1917;
+    --caption: #a49d90;
+    --focus: #7fb2ff;
+  }
+
+  /* ---------- The object itself (fixed palette: it's a physical thing) ---------- */
+  .calc {
+    --body: #2c2824;          /* dark brown-black housing */
+    --plate: #b9b2a2;         /* champagne aluminium faceplate */
+    --plate-hi: #d3cdbf;
+    --plate-lo: #9c9584;
+    --lcd: #b7bf9f;           /* grey-green liquid crystal */
+    --lcd-ink: #1f2619;
+    --key-num: #ebe6da;       /* cream number keys */
+    --key-num-ink: #2a2622;
+    --key-fn: #4a443e;        /* dark function keys */
+    --key-fn-ink: #efe9dc;
+    --key-op: #8d877c;        /* mid-grey operator keys */
+    --key-op-ink: #fbf8f1;
+    --key-clear: #d4582c;     /* the orange-red AC/C */
+    --key-clear-ink: #fff6ee;
+    --print: #3a352f;         /* screen-printed legends on faceplate */
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 80% at 50% 0%, var(--desk) 0%, var(--desk-shade) 100%);
+    font-family: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+    display: grid;
+    place-items: center;
+    padding-inline: 16px;
+    padding-block: 32px;
+    box-sizing: border-box;
+  }
+
+  .stage { display: grid; gap: 14px; justify-items: center; width: 100%; }
+
+  .calc {
+    width: min(400px, 100%);
+    background: var(--body);
+    border-radius: 18px 18px 22px 22px;
+    padding: 12px 12px 18px;
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.08) inset,
+      0 -3px 0 rgba(0,0,0,.35) inset,
+      0 24px 40px -18px rgba(0,0,0,.55),
+      0 6px 10px -4px rgba(0,0,0,.35);
+    box-sizing: border-box;
+  }
+
+  .plate {
+    background: linear-gradient(180deg, var(--plate-hi), var(--plate) 18%, var(--plate) 82%, var(--plate-lo));
+    border-radius: 10px;
+    padding: 14px 16px 18px;
+    display: grid;
+    gap: 14px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,.25), 0 1px 0 rgba(255,255,255,.35) inset;
+  }
+
+  /* ---------- Header: brand + solar cell ---------- */
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .brand { display: grid; gap: 2px; color: var(--print); }
+  .brand b {
+    font-family: "Michroma", "Eurostile", "Arial Black", sans-serif;
+    font-size: 17px; letter-spacing: .14em; font-weight: 400; line-height: 1;
+  }
+  .brand small { font-size: 10px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; }
+  .solar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px;
+    width: 116px; height: 30px; padding: 3px;
+    background: #1b1714; border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.4);
+  }
+  .solar i {
+    background:
+      repeating-linear-gradient(90deg, transparent 0 5px, rgba(255,255,255,.05) 5px 6px),
+      linear-gradient(160deg, #4a3a3c, #2b2124 60%, #3a2c2e);
+  }
+
+  /* ---------- LCD window ---------- */
+  .bezel {
+    background: #24201c;
+    border-radius: 6px;
+    padding: 8px;
+    box-shadow: 0 2px 3px rgba(0,0,0,.35) inset, 0 1px 0 rgba(255,255,255,.45);
+  }
+  .lcd {
+    position: relative;
+    background: linear-gradient(180deg, #a9b190 0%, var(--lcd) 25%, var(--lcd) 100%);
+    border-radius: 2px;
+    padding: 6px 8px 8px;
+    box-shadow: 0 3px 6px -2px rgba(0,0,0,.45) inset;
+  }
+  .flags {
+    display: flex; gap: 10px; height: 11px;
+    font-size: 9px; font-weight: 700; letter-spacing: .08em; color: var(--lcd-ink);
+  }
+  .flags span { opacity: .07; }
+  .flags span.on { opacity: .85; }
+  .digits {
+    display: grid; grid-template-columns: repeat(12, 1fr); gap: 1px;
+    transform: skewX(-5deg);
+  }
+  .digits svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .seg { fill: var(--lcd-ink); opacity: .07; }
+  .seg.on { opacity: .9; filter: drop-shadow(1px 1.5px 0 rgba(31,38,25,.18)); }
+
+  .spec {
+    display: flex; justify-content: space-between;
+    font-size: 9.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--print); margin-top: -4px;
+  }
+
+  /* ---------- Slide selectors ---------- */
+  .switches { display: grid; grid-template-columns: 1fr 1.5fr; gap: 14px; }
+  .switch { display: grid; gap: 4px; }
+  .switch-legend {
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    font-size: 9px; font-weight: 700; letter-spacing: .04em; color: var(--print); text-align: center;
+  }
+  .switch-track {
+    position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    height: 14px; background: #2a2521; border-radius: 3px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.5) inset, 0 1px 0 rgba(255,255,255,.4);
+  }
+  .switch-track button {
+    all: unset; cursor: pointer; display: grid; place-items: center;
+  }
+  .switch-track button::after {
+    content: ""; width: 70%; height: 10px; border-radius: 2px;
+  }
+  .switch-track button[aria-pressed="true"]::after {
+    background: linear-gradient(180deg, #e9e4d8, #b3ac9c);
+    box-shadow: 0 1px 1px rgba(0,0,0,.5);
+  }
+  .switch-track button:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-radius: 2px; }
+  .switch-name {
+    font-size: 8.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--print); text-align: center;
+  }
+
+  /* ---------- Keypad ---------- */
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px 9px;
+    padding: 10px 2px 0;
+  }
+  .key sup { font-size: .62em; line-height: 0; vertical-align: .45em; margin-left: 1px; }
+  .key {
+    --face: var(--key-num); --ink: var(--key-num-ink);
+    appearance: none; border: 0; cursor: pointer;
+    aspect-ratio: 1 / .82;
+    border-radius: 7px 7px 9px 9px;
+    font: 600 clamp(15px, 4.6vw, 20px)/1 "Barlow Semi Condensed", "Arial Narrow", sans-serif;
+    letter-spacing: .02em;
+    color: var(--ink);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 40%, rgba(0,0,0,.12)),
+      var(--face);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.35) inset,
+      0 4px 0 0 color-mix(in oklab, var(--face) 55%, #000),
+      0 5px 6px rgba(0,0,0,.35);
+    transform: translateY(0);
+    transition: transform 50ms ease-out, box-shadow 50ms ease-out;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .key.fn   { --face: var(--key-fn);    --ink: var(--key-fn-ink); font-size: clamp(12px, 3.6vw, 15px); }
+  .key.op   { --face: var(--key-op);    --ink: var(--key-op-ink); font-size: clamp(18px, 5.4vw, 24px); }
+  .key.clear{ --face: var(--key-clear); --ink: var(--key-clear-ink); }
+  .key.tall { grid-row: span 2; aspect-ratio: auto; }
+  .key.is-down {
+    transform: translateY(3px);
+    box-shadow:
+      0 1px 0 rgba(255,255,255,.2) inset,
+      0 1px 0 0 color-mix(in oklab, var(--face) 55%, #000),
+      0 1px 2px rgba(0,0,0,.4);
+  }
+  .key:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+  .caption {
+    font-size: 13px; color: var(--caption); letter-spacing: .02em; text-align: center;
+    max-width: 40ch; text-wrap: balance;
+  }
+  .caption kbd {
+    font: 600 12px/1 "Barlow Semi Condensed", sans-serif;
+    padding: 1px 5px; border: 1px solid currentColor; border-radius: 3px; opacity: .9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .key { transition: none; }
+  }
+</style>
+
+<main class="stage">
+  <section class="calc" aria-label="Tally DS-812 desktop calculator">
+    <div class="plate">
+      <header class="head">
+        <div class="brand">
+          <b>TALLY</b>
+          <small>DS-812 Electronic Calculator</small>
+        </div>
+        <div class="solar" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </header>
+
+      <div class="bezel">
+        <div class="lcd" role="status" aria-live="polite" aria-label="Display">
+          <div class="flags" aria-hidden="true">
+            <span data-flag="M">M</span>
+            <span data-flag="minus">−</span>
+            <span data-flag="E">E</span>
+            <span data-flag="GT">GT</span>
+          </div>
+          <div class="digits" id="digits" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="spec" aria-hidden="true">
+        <span>12 Digits</span>
+        <span>Two Way Power</span>
+      </div>
+
+      <div class="switches">
+        <div class="switch">
+          <div class="switch-legend" aria-hidden="true"><span>F</span><span>CUT</span><span>UP</span><span>5/4</span></div>
+          <div class="switch-track" role="group" aria-label="Rounding" data-switch="round">
+            <button type="button" id="round-f" aria-label="Floating" aria-pressed="true"></button>
+            <button type="button" id="round-cut" aria-label="Round down" aria-pressed="false"></button>
+            <button type="button" id="round-up" aria-label="Round up" aria-pressed="false"></button>
+            <button type="button" id="round-54" aria-label="Round half up" aria-pressed="false"></button>
+          </div>
+          <div class="switch-name" aria-hidden="true">Rounding</div>
+        </div>
+        <div class="switch">
+          <div class="switch-legend" aria-hidden="true"><span>4</span><span>3</span><span>2</span><span>0</span><span>ADD2</span></div>
+          <div class="switch-track" role="group" aria-label="Decimal places" data-switch="decimal">
+            <button type="button" id="dec-4" aria-label="4 decimal places" aria-pressed="false"></button>
+            <button type="button" id="dec-3" aria-label="3 decimal places" aria-pressed="false"></button>
+            <button type="button" id="dec-2" aria-label="2 decimal places" aria-pressed="true"></button>
+            <button type="button" id="dec-0" aria-label="No decimal places" aria-pressed="false"></button>
+            <button type="button" id="dec-add2" aria-label="Add mode, 2 places" aria-pressed="false"></button>
+          </div>
+          <div class="switch-name" aria-hidden="true">Decimal</div>
+        </div>
+      </div>
+
+      <div class="keys" id="keys">
+        <!-- Row 1: functions + divide -->
+        <button class="key fn" id="k-sqrt" data-key="sqrt" aria-label="Square root">√</button>
+        <button class="key fn" id="k-sq"   data-key="sq"   aria-label="Square">x<sup>2</sup></button>
+        <button class="key fn" id="k-inv"  data-key="inv"  aria-label="Reciprocal">1/x</button>
+        <button class="key fn" id="k-pow"  data-key="^"    aria-label="Power">x<sup>y</sup></button>
+        <button class="key fn" id="k-pi"   data-key="pi"   aria-label="Pi">π</button>
+        <!-- Row 2: memory + divide -->
+        <button class="key fn" id="k-mc"  data-key="MC">MC</button>
+        <button class="key fn" id="k-mr"  data-key="MR">MR</button>
+        <button class="key fn" id="k-mm"  data-key="M-">M−</button>
+        <button class="key fn" id="k-mp"  data-key="M+">M+</button>
+        <button class="key op" id="k-div" data-key="/" aria-label="Divide">÷</button>
+        <!-- Row 3 -->
+        <button class="key clear" id="k-ac" data-key="AC" aria-label="All clear">AC</button>
+        <button class="key" id="k-7" data-key="7">7</button>
+        <button class="key" id="k-8" data-key="8">8</button>
+        <button class="key" id="k-9" data-key="9">9</button>
+        <button class="key op" id="k-mul" data-key="*" aria-label="Multiply">×</button>
+        <!-- Row 3 -->
+        <button class="key clear" id="k-c" data-key="C" aria-label="Clear entry">C</button>
+        <button class="key" id="k-4" data-key="4">4</button>
+        <button class="key" id="k-5" data-key="5">5</button>
+        <button class="key" id="k-6" data-key="6">6</button>
+        <button class="key op" id="k-sub" data-key="-" aria-label="Subtract">−</button>
+        <!-- Row 4 (+ spans rows 4–5) -->
+        <button class="key fn" id="k-back" data-key="Backspace" aria-label="Backspace">▸</button>
+        <button class="key" id="k-1" data-key="1">1</button>
+        <button class="key" id="k-2" data-key="2">2</button>
+        <button class="key" id="k-3" data-key="3">3</button>
+        <button class="key op tall" id="k-add" data-key="+" aria-label="Add">+</button>
+        <!-- Row 5 -->
+        <button class="key" id="k-00" data-key="00">00</button>
+        <button class="key" id="k-0" data-key="0">0</button>
+        <button class="key" id="k-dot" data-key="." aria-label="Decimal point">·</button>
+        <button class="key op" id="k-eq" data-key="=" aria-label="Equals">=</button>
+      </div>
+    </div>
+  </section>
+
+  <p class="caption">Every sum is computed by a Java REST API. Keyboard works too: <kbd>0–9</kbd> <kbd>+ − × ÷ ^</kbd> <kbd>R</kbd> <kbd>P</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd> <kbd>⌫</kbd></p>
+</main>
+
+<script>
+(() => {
+  const CELLS = 12;
+
+  /* ----- Seven-segment digit renderer ----- */
+  const t = 5; // segment thickness
+  const h = (x, y, len) => `${x},${y} ${x+t/2},${y-t/2} ${x+len-t/2},${y-t/2} ${x+len},${y} ${x+len-t/2},${y+t/2} ${x+t/2},${y+t/2}`;
+  const v = (x, y, len) => `${x},${y} ${x+t/2},${y+t/2} ${x+t/2},${y+len-t/2} ${x},${y+len} ${x-t/2},${y+len-t/2} ${x-t/2},${y+t/2}`;
+  const SEGMENTS = {
+    a: h(5, 4, 24),  g: h(5, 34, 24), d: h(5, 64, 24),
+    f: v(4, 5, 28),  b: v(30, 5, 28),
+    e: v(4, 35, 28), c: v(30, 35, 28),
+  };
+  const GLYPHS = {
+    "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
+    "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcdfg",
+    "-": "g", "E": "adefg", " ": "",
+  };
+
+  const digitsEl = document.getElementById("digits");
+  const cells = [];
+  for (let i = 0; i < CELLS; i++) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "-1 -1 42 70");
+    const segs = {};
+    for (const [name, pts] of Object.entries(SEGMENTS)) {
+      const p = document.createElementNS(svg.namespaceURI, "polygon");
+      p.setAttribute("points", pts);
+      p.setAttribute("class", "seg");
+      svg.appendChild(p);
+      segs[name] = p;
+    }
+    const dp = document.createElementNS(svg.namespaceURI, "circle");
+    dp.setAttribute("cx", "37"); dp.setAttribute("cy", "64"); dp.setAttribute("r", "2.6");
+    dp.setAttribute("class", "seg");
+    svg.appendChild(dp);
+    segs.dp = dp;
+    digitsEl.appendChild(svg);
+    cells.push(segs);
+  }
+
+  // Parse "123.45" into cells: [{ch:"1"},{ch:"2"},{ch:"3",dp:true},...], right-aligned.
+  function render(text) {
+    const out = [];
+    for (const ch of text) {
+      if (ch === ".") { if (out.length) out[out.length - 1].dp = true; else out.push({ ch: "0", dp: true }); }
+      else out.push({ ch, dp: false });
+    }
+    const padded = Array(Math.max(0, CELLS - out.length)).fill({ ch: " ", dp: false }).concat(out.slice(-CELLS));
+    padded.forEach((cell, i) => {
+      const lit = GLYPHS[cell.ch] ?? "";
+      for (const name of "abcdefg") cells[i][name].classList.toggle("on", lit.includes(name));
+      cells[i].dp.classList.toggle("on", cell.dp);
+    });
+    digitsEl.parentElement.setAttribute("aria-label", "Display " + text);
+  }
+
+  /* ----- Calculator state machine; all arithmetic is delegated to the Java API ----- */
+  const API = "/api/";
+  const OPS = { "+": "add", "-": "subtract", "*": "multiply", "/": "divide", "^": "power" };
+  const UNARY = { sqrt: "sqroot", sq: "square", inv: "inverse" };
+  const flagEls = Object.fromEntries([...document.querySelectorAll("[data-flag]")].map(el => [el.dataset.flag, el]));
+
+  const st = {
+    display: "0",     // what the LCD shows (plain decimal string)
+    typing: false,    // digits typed now extend `display`
+    ready: false,     // user has supplied a value since the last operator
+    acc: null,        // left-hand operand of the pending operator
+    op: null,         // pending operator key
+    lastOp: null,     // for repeated "=": 5 + 2 = = = -> 7, 9, 11
+    lastArg: null,
+    memory: "0",
+    error: false,
+  };
+
+  class CalcError extends Error {}
+
+  // POST the operands as raw JSON text so decimals never round-trip through a double.
+  async function call(operation, operands) {
+    let res;
+    try {
+      res = await fetch(API + operation, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // "5." is a valid display value mid-entry but not a valid JSON number, so drop a trailing point.
+        body: `{"operands":[${operands.map(x => x.replace(/\.$/, "")).join(",")}]}`,
+      });
+    } catch { throw new CalcError("network"); }
+    if (!res.ok) throw new CalcError((await res.json().catch(() => ({}))).detail ?? res.statusText);
+    return (await res.json()).result;
+  }
+
+  // Fit a decimal string into the 12 digit display: round the fraction, or overflow.
+  function fit(value) {
+    const neg = value.startsWith("-");
+    let [int, frac = ""] = value.replace("-", "").split(".");
+    int = int.replace(/^0+(?=\d)/, "");
+    if (int.length > CELLS) throw new CalcError("overflow");
+    const room = CELLS - int.length;
+    if (frac.length > room) {
+      const roundUp = frac.charCodeAt(room) >= 53;           // next digit >= 5
+      let digits = (int + frac.slice(0, room)).split("");
+      for (let i = digits.length - 1; roundUp && i >= 0; i--) {
+        if (digits[i] === "9") digits[i] = "0"; else { digits[i] = String(+digits[i] + 1); break; }
+        if (i === 0) digits.unshift("1");
+      }
+      int = digits.slice(0, digits.length - room).join("");
+      frac = digits.slice(digits.length - room).join("");
+      if (int.length > CELLS) throw new CalcError("overflow");
+    }
+    frac = frac.replace(/0+$/, "");
+    const text = frac ? `${int}.${frac}` : int;
+    return neg && /[1-9]/.test(text) ? "-" + text : text;
+  }
+
+  function paint() {
+    const text = st.display;
+    // Draw the minus sign in the cell left of the number. A full 12-digit negative has no
+    // free cell, so there the "−" indicator flag (always lit for negatives) has to carry it.
+    const digitCount = text.replace(/[-.]/g, "").length;
+    const lcdText = digitCount < CELLS ? text : text.replace("-", "");
+    render(lcdText + (text.includes(".") ? "" : "."));
+    digitsEl.parentElement.setAttribute("aria-label", "Display " + text);
+    flagEls.minus.classList.toggle("on", text.startsWith("-"));
+    flagEls.M.classList.toggle("on", /[1-9]/.test(st.memory));
+    flagEls.E.classList.toggle("on", st.error);
+  }
+
+  const fail = () => { Object.assign(st, { display: "0", typing: false, ready: false, acc: null, op: null, lastOp: null, error: true }); };
+
+  async function press(key) {
+    try {
+      if (st.error && key !== "AC" && key !== "C") return;
+      if (/^\d+$/.test(key)) {
+        if (!st.typing) { if (!st.op && !st.ready) st.lastOp = null; st.display = "0"; st.typing = true; }
+        for (const d of key) {
+          if (st.display.replace(/[-.]/g, "").length >= CELLS) break;
+          st.display = st.display === "0" ? d : st.display + d;
+        }
+        st.ready = true;
+      } else if (key === ".") {
+        if (!st.typing) { st.display = "0"; st.typing = true; }
+        if (!st.display.includes(".")) st.display += ".";
+        st.ready = true;
+      } else if (key in UNARY) {
+        // Acts on the displayed value straight away; the result becomes the current operand,
+        // so "5 + 9 √ =" gives 8.
+        st.display = fit(await call(UNARY[key], [st.display]));
+        Object.assign(st, { typing: false, ready: true });
+      } else if (key in OPS) {
+        if (st.op && st.ready) st.acc = fit(await call(OPS[st.op], [st.acc, st.display]));
+        else if (!st.op) st.acc = st.display;
+        if (st.op && st.ready) st.display = st.acc;
+        Object.assign(st, { op: key, typing: false, ready: false, lastOp: null });
+      } else if (key === "=") {
+        if (st.op) {
+          const arg = st.display;
+          st.display = fit(await call(OPS[st.op], [st.acc, arg]));
+          Object.assign(st, { lastOp: st.op, lastArg: arg, op: null, acc: null, typing: false, ready: false });
+        } else if (st.lastOp) {
+          st.display = fit(await call(OPS[st.lastOp], [st.display, st.lastArg]));
+          st.typing = false;
+        }
+      } else if (key === "Backspace") {
+        if (st.typing) { st.display = st.display.slice(0, -1); if (st.display === "" || st.display === "-") st.display = "0"; }
+      } else if (key === "C") {
+        Object.assign(st, { display: "0", typing: false, error: false });
+      } else if (key === "AC") {
+        Object.assign(st, { display: "0", typing: false, ready: false, acc: null, op: null, lastOp: null, error: false });
+      } else if (key === "pi") {
+        st.display = fit(await call("pi", []));   // a constant: the API takes no operands
+        Object.assign(st, { typing: false, ready: true });
+      } else if (key === "M+" || key === "M-") {
+        st.memory = await call(key === "M+" ? "add" : "subtract", [st.memory, st.display]);
+        st.typing = false;
+      } else if (key === "MR") {
+        st.display = fit(st.memory); st.typing = false; st.ready = true;
+      } else if (key === "MC") {
+        st.memory = "0";
+      }
+    } catch (e) {
+      if (!(e instanceof CalcError)) throw e;
+      fail();
+      console.warn("Calculation failed:", e.message);
+    }
+    paint();
+  }
+
+  // Key presses are queued so a fast typist can't overtake an in-flight request.
+  let queue = Promise.resolve();
+  const enqueue = key => { queue = queue.then(() => press(key)); };
+
+  /* ----- Key press visuals ----- */
+  const keyBlocks = document.querySelectorAll(".keys");
+  const byKey = new Map([...document.querySelectorAll(".keys .key")].map(b => [b.dataset.key, b]));
+
+  const down = btn => btn.classList.add("is-down");
+  const up = btn => btn.classList.remove("is-down");
+
+  keyBlocks.forEach(keysEl => keysEl.addEventListener("pointerdown", e => {
+    const btn = e.target.closest(".key"); if (!btn) return;
+    down(btn);
+    const release = () => { up(btn); window.removeEventListener("pointerup", release); window.removeEventListener("pointercancel", release); };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+  }));
+  keyBlocks.forEach(keysEl => keysEl.addEventListener("click", e => {
+    const btn = e.target.closest(".key"); if (!btn) return;
+    enqueue(btn.dataset.key);
+  }));
+
+  const KEYMAP = { Enter: "=", Escape: "AC", Delete: "C", x: "*", X: "*", ",": ".", r: "sqrt", R: "sqrt", p: "pi", P: "pi" };
+  document.addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = KEYMAP[e.key] ?? e.key;
+    const btn = byKey.get(k); if (!btn) return;
+    e.preventDefault();
+    down(btn);
+    setTimeout(() => up(btn), 110);
+    enqueue(k);
+  });
+
+  /* ----- Slide selectors (visual only) ----- */
+  document.querySelectorAll(".switch-track").forEach(track => {
+    track.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b) return;
+      track.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    });
+  });
+
+  paint();
+})();
+</script>
+</html>
