@@ -14,7 +14,7 @@ side they show how differently the same problem can be solved with the same lang
 | Form factor | Directory | What it is | Java on show |
 |-------------|-----------|------------|--------------|
 | **Web app** | [`web/`](web/README.md) | Inspired by **[lcrilly/unit-calculator](https://github.com/lcrilly/unit-calculator)** - a desktop calculator in the browser, backed by a JSON REST API, shipped as a container. | Spring Boot 4, sealed types and record patterns in a service layer, `jdeps` + `jlink` custom runtime |
-| **Command line** | [`cli/`](cli/README.md) | Inspired by **[lcrilly/calc-cli](https://github.com/lcrilly/calc-cli)** - an expression calculator for the shell, with lists, ranges and functions. | Compact source files, multi-file source launch (no build step), module imports, a sealed expression tree, an AOT cache for ~20 ms startup |
+| **Command line** | [`cli/`](cli/README.md) | Inspired by **[lcrilly/calc-cli](https://github.com/lcrilly/calc-cli)** - an expression calculator for the shell, with lists, ranges, functions and stdin pipelines. | Compact source files, multi-file source launch (no build step), module imports, a sealed expression tree, the Foreign Function & Memory API, an AOT cache for fast startup |
 
 Both use exact arithmetic, so `0.1 + 0.2` is exactly `0.3`.
 
@@ -33,7 +33,7 @@ Then pick a form factor:
 
 ```shell
 cd cli && java Calc.java "2x{3+4}"      # 14, no build needed
-cd cli && ./build.sh && ./jcalc 2x{3+4} # 14, 25× faster once built
+cd cli && ./build.sh && ./jcalc 2x{3+4} # 14, about 25× faster once built
 cd web && ./mvnw spring-boot:run        # http://localhost:9000 (Maven is fetched by the wrapper)
 ```
 
@@ -52,13 +52,14 @@ Where to look for each feature:
 | Sequenced collections (`getFirst`, `addFirst`) | 21 | `web` `Calculator`; `cli` `Lexer`, `Parser`, `Func` |
 | Unnamed variables and patterns (`_`) | 22 | `web` `Calculator`; `cli` `Lexer` (`case Tok.Num _, Tok.Pi _ ->`) |
 | Multi-file source programs | 22 | `cli`: `java Calc.java` compiles the other files on demand |
+| Foreign Function & Memory API | 22 | `cli/Native.java`: `isatty`, `localeconv` and macOS CoreFoundation, without JNI |
 | Markdown documentation comments (`///`) | 23 | `cli` |
 | Compact source files and instance `main` | 25 | `cli/Calc.java` |
 | Module import declarations (`import module java.base;`) | 25 | `cli` |
 | Text blocks | 15 | `cli` usage text |
 | `BigDecimal` / `BigInteger` exact arithmetic | — | `web` 34-digit decimals; `cli` exact fractions |
 | `jdeps` + `jlink` custom runtime | 9+ | `web/Dockerfile`: a 67 MB runtime of only the modules the app needs |
-| AOT cache (ahead-of-time class loading, linking and method profiles) | 24–25 | `cli/build.sh` and `cli/jcalc`: startup from ~550 ms to ~20 ms |
+| AOT cache (ahead-of-time class loading, linking and method profiles) | 24–25 | `cli/build.sh` and `cli/jcalc`: startup from ~640 ms to ~25 ms |
 
 ## Future development
 
@@ -68,4 +69,3 @@ Ideas for further form factors and experiments, each showing something new:
 - **Native executable** with GraalVM Native Image, to compare startup with the JIT
 - **CRaC** (Coordinated Restore at Checkpoint) on Zulu, for near-instant JVM startup
 - **OpenTelemetry tracing** of the web app, with the Java agent or Spring Boot's own support
-- **stdin pipelines** for the CLI, using the Foreign Function & Memory API to detect a terminal

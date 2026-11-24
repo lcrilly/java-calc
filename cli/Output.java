@@ -1,12 +1,11 @@
 import module java.base;
 
-/// Formats results for printing.
+/// Turns values into decimals for printing.
 ///
 ///  - Integers print as integers: `7/7` → `1`.
 ///  - Fractions that terminate print in full: `1/64` → `0.015625`.
 ///  - Recurring and irrational results print to 5 decimal places, trailing zeros trimmed,
 ///    or to `-p N` places.
-///  - A decimal point anywhere in the input keeps one in the output: `2.5x2` → `5.0`.
 ///  - Approximate results of 1e16 or more use scientific notation, since their low digits
 ///    aren't real.
 final class Output {
@@ -25,17 +24,40 @@ final class Output {
 
     private static final double SCIENTIFIC_THRESHOLD = 1e16;
 
-    static String format(Value value, boolean decimalInput, Precision precision) {
-        var text = switch (value) {
+    /// A number ready to print: its sign, the digits either side of the decimal mark, and an
+    /// optional exponent. Printing it plainly (`toString`) or in a local style
+    /// (`NumberStyle.apply`) is then only a matter of punctuation.
+    record Decimal(boolean negative, String integer, String fraction, Integer exponent) {
+
+        /// Reads a plain decimal string such as `-1234.50`, trimming trailing zeros and the
+        /// sign from zero.
+        static Decimal of(String plain, Integer exponent) {
+            boolean negative = plain.startsWith("-");
+            var digits = negative ? plain.substring(1) : plain;
+            int point = digits.indexOf('.');
+            var integer = point < 0 ? digits : digits.substring(0, point);
+            var fraction = point < 0 ? "" : digits.substring(point + 1).replaceAll("0+$", "");
+            boolean zero = fraction.isEmpty() && integer.chars().allMatch(c -> c == '0');
+            return new Decimal(negative && !zero, integer, fraction, exponent);
+        }
+
+        @Override
+        public String toString() {
+            return (negative ? "-" : "") + integer + (fraction.isEmpty() ? "" : "." + fraction)
+                    + (exponent == null ? "" : "e" + exponent);
+        }
+    }
+
+    static Decimal format(Value value, Precision precision) {
+        return switch (value) {
             case Value.Exact exact -> exact(exact, precision);
             case Value.Approx(var d) -> real(d, precision);
         };
-        return tidy(text, decimalInput);
     }
 
-    private static String exact(Value.Exact r, Precision precision) {
+    private static Decimal exact(Value.Exact r, Precision precision) {
         if (r.isInteger()) {
-            return r.num().toString();
+            return Decimal.of(r.num().toString(), null);
         }
         OptionalInt terminating = terminatingPlaces(r.den());
         Integer places = switch (precision) {
@@ -47,7 +69,8 @@ final class Output {
             return real(r.toDouble(), precision); // recurring, at max precision: show a double's worth
         }
         // Exact long division, rounding half away from zero.
-        return new BigDecimal(r.num()).divide(new BigDecimal(r.den()), places, RoundingMode.HALF_UP).toPlainString();
+        return Decimal.of(new BigDecimal(r.num()).divide(new BigDecimal(r.den()), places, RoundingMode.HALF_UP)
+                .toPlainString(), null);
     }
 
     /// Decimal places needed if 1/den terminates (den = 2^a·5^b), else empty.
@@ -63,50 +86,28 @@ final class Output {
         return rest.equals(BigInteger.ONE) ? OptionalInt.of(Math.max(twos, fives)) : OptionalInt.empty();
     }
 
-    private static String real(double d, Precision precision) {
+    private static Decimal real(double d, Precision precision) {
         if (Math.abs(d) >= SCIENTIFIC_THRESHOLD) {
             return scientific(d, precision);
         }
-        return switch (precision) {
+        var text = switch (precision) {
             // new BigDecimal(double) is the double's exact binary value, so rounding it gives
-            // the correctly rounded decimal, the same digits as Rust's {:.5}.
+            // the correctly rounded decimal: the same digits as Rust's {:.5}.
             case Precision.Default _ -> new BigDecimal(d).setScale(DEFAULT_PLACES, RoundingMode.HALF_EVEN).toPlainString();
             case Precision.Places(var n) -> new BigDecimal(d).setScale(n, RoundingMode.HALF_EVEN).toPlainString();
             // Double.toString is the shortest string that reads back as the same double.
             case Precision.Max _ -> new BigDecimal(Double.toString(d)).toPlainString();
         };
+        return Decimal.of(text, null);
     }
 
-    private static String scientific(double d, Precision precision) {
+    private static Decimal scientific(double d, Precision precision) {
         var digits = switch (precision) {
             case Precision.Default _ -> new BigDecimal(d).round(new MathContext(DEFAULT_PLACES + 1, RoundingMode.HALF_EVEN));
             case Precision.Places(var n) -> new BigDecimal(d).round(new MathContext(n + 1, RoundingMode.HALF_EVEN));
             case Precision.Max _ -> new BigDecimal(Double.toString(d));
         };
         int exponent = digits.precision() - digits.scale() - 1;
-        var mantissa = digits.movePointLeft(exponent);
-        if (!(precision instanceof Precision.Max)) {
-            int places = precision instanceof Precision.Places(var n) ? n : DEFAULT_PLACES;
-            mantissa = mantissa.setScale(places, RoundingMode.HALF_EVEN);
-        }
-        return tidy(mantissa.toPlainString(), false) + "e" + exponent;
-    }
-
-    /// Trims trailing fractional zeros, turns "-0" into "0", and keeps a ".0" when the input
-    /// itself had decimals.
-    private static String tidy(String s, boolean decimalInput) {
-        if (s.contains("e")) {
-            return s;
-        }
-        if (s.contains(".")) {
-            s = s.replaceAll("0+$", "").replaceAll("\\.$", "");
-        }
-        if (s.equals("-0")) {
-            s = "0";
-        }
-        if (decimalInput && !s.contains(".")) {
-            s += ".0";
-        }
-        return s;
+        return Decimal.of(digits.movePointLeft(exponent).toPlainString(), exponent);
     }
 }

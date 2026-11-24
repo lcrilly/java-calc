@@ -48,10 +48,10 @@ sealed interface Value permits Value.Exact, Value.Approx {
     /// Wraps a double result, rejecting the values that aren't numbers at all.
     static Value approx(double d) {
         if (Double.isNaN(d)) {
-            throw new CalcError.Maths("undefined result");
+            throw new CalcError.Input("undefined result");
         }
         if (Double.isInfinite(d)) {
-            throw new CalcError.Maths("result out of range");
+            throw new CalcError.Input("result out of range");
         }
         return new Approx(d);
     }
@@ -96,7 +96,7 @@ sealed interface Value permits Value.Exact, Value.Approx {
 
     default Value divide(Value other) {
         if (other.signum() == 0) {
-            throw new CalcError.Maths("division by zero");
+            throw new CalcError.Input("division by zero");
         }
         if (this instanceof Exact(var an, var ad) && other instanceof Exact(var bn, var bd)) {
             return new Exact(an.multiply(bd), ad.multiply(bn));
@@ -108,7 +108,7 @@ sealed interface Value permits Value.Exact, Value.Approx {
     /// Python: `-7 mod 3` is 2, `7 mod -3` is -2.
     default Value mod(Value other) {
         if (other.signum() == 0) {
-            throw new CalcError.Maths("modulo by zero");
+            throw new CalcError.Input("modulo by zero");
         }
         if (this instanceof Exact && other instanceof Exact) {
             var quotient = (Exact) divide(other);
@@ -120,7 +120,7 @@ sealed interface Value permits Value.Exact, Value.Approx {
 
     default Value power(Value exponent) {
         if (signum() == 0 && exponent.signum() < 0) {
-            throw new CalcError.Maths("division by zero");
+            throw new CalcError.Input("division by zero");
         }
         if (this instanceof Exact(var num, var den) && exponent instanceof Exact e && e.isInteger()
                 && e.num().bitLength() < 32) {
@@ -133,6 +133,34 @@ sealed interface Value permits Value.Exact, Value.Approx {
         return approx(Math.pow(toDouble(), exponent.toDouble()));
     }
 
+    /// n! for a whole number n ≥ 0: exact for as long as MAX_EXACT_BITS allows (well past
+    /// 1000!), or as a double for an approximate whole number, which overflows after 170!.
+    default Value factorial() {
+        return switch (this) {
+            case Exact e when e.isInteger() && e.num().signum() >= 0 -> {
+                if (e.num().bitLength() > 31) {
+                    throw new CalcError.Input("result out of range");
+                }
+                var product = BigInteger.ONE;
+                for (int k = 2, n = e.num().intValue(); k <= n; k++) {
+                    product = product.multiply(BigInteger.valueOf(k));
+                    if (product.bitLength() > MAX_EXACT_BITS) {
+                        throw new CalcError.Input("result out of range");
+                    }
+                }
+                yield new Exact(product, BigInteger.ONE);
+            }
+            case Approx(var d) when d >= 0 && d == Math.rint(d) -> {
+                double product = 1;
+                for (int k = 2; k <= Math.min(d, 171); k++) {
+                    product *= k;
+                }
+                yield approx(product);
+            }
+            default -> throw new CalcError.Input("factorial needs a whole number ≥ 0");
+        };
+    }
+
     default Value negate() {
         return switch (this) {
             case Exact(var num, var den) -> new Exact(num.negate(), den);
@@ -142,7 +170,7 @@ sealed interface Value permits Value.Exact, Value.Approx {
 
     default Value sqrt() {
         if (signum() < 0) {
-            throw new CalcError.Maths("square root of a negative number");
+            throw new CalcError.Input("square root of a negative number");
         }
         // Perfect squares stay exact: √(9/4) is exactly 3/2.
         if (this instanceof Exact(var num, var den)) {
@@ -182,7 +210,7 @@ sealed interface Value permits Value.Exact, Value.Approx {
         };
     }
 
-    /// Orders values for min, max and median: exactly when both are exact.
+    /// A total order for sorting (min, max, median, mode): exact when both values are exact.
     static int compare(Value a, Value b) {
         if (a instanceof Exact(var an, var ad) && b instanceof Exact(var bn, var bd)) {
             return an.multiply(bd).compareTo(bn.multiply(ad));
