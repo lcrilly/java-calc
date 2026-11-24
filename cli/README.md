@@ -1,7 +1,8 @@
 # java-calc: command line
 
-An expression calculator for the shell, with lists and functions, run straight from source.
-There is no build step and there are no dependencies: the JDK compiles it in memory on each run.
+An expression calculator for the shell, with lists and functions. Run it straight from source
+with no build step, or build it in under a second for a 25× faster command. There are no
+dependencies either way.
 It mirrors the expression language of [calc-cli](https://github.com/lcrilly/calc-cli), a
 Rust tool for the same job.
 
@@ -9,10 +10,28 @@ Part of the [java-calc](../README.md) showcase. Requires JDK 25.
 
 ## Usage
 
-```sh
-java Calc.java 2x{3+4}        # from this directory, or make it a command:
-alias jcalc='java /path/to/java-calc/cli/Calc.java'
+Two ways to run it:
 
+```sh
+# 1. From source: no build step. The JDK compiles all the files in memory on every run (~0.55 s).
+java Calc.java 2x{3+4}
+
+# 2. Built: a precompiled jar with an AOT cache (~0.02 s). Rebuild after editing the sources
+#    or upgrading the JDK; ./jcalc warns if the sources are newer than the build.
+./build.sh
+./jcalc 2x{3+4}
+```
+
+To make it a command, put this directory on your `PATH`, or:
+
+```sh
+alias jcalc=/path/to/java-calc/cli/jcalc               # built (fast)
+alias jcalc='java /path/to/java-calc/cli/Calc.java'    # from source
+```
+
+Examples:
+
+```sh
 jcalc 0.1+0.2                 # 0.3      exact decimal arithmetic
 jcalc {3x4}^2                 # 144      shell-safe brackets and ×
 jcalc 15+4+3}/2               # 11       an unmatched } wraps everything before it
@@ -100,8 +119,32 @@ needed ([multi-file source programs](https://openjdk.org/jeps/458), JDK 22+).
 
 The other files use `import module java.base;` ([module imports](https://openjdk.org/jeps/511), JDK 25).
 
-**Startup.** Compiling from source on every run costs about half a second. That's fine for one-off
-use, but it adds up in a loop. Adding `-XX:TieredStopAtLevel=1` to the alias saves about 15–20%.
+## Startup time
+
+Running from source, about 95% of each call is spent compiling. Measured on Zulu 25 for a
+typical expression:
+
+| How it runs | Per call |
+|-------------|----------|
+| `java Calc.java` (compiles ~1,160 lines every time) | ~550 ms |
+| … plus `-XX:TieredStopAtLevel=1` | ~450 ms |
+| … plus an AOT cache of javac's own classes | ~315 ms |
+| `./jcalc`: precompiled jar + AOT cache + `-XX:TieredStopAtLevel=1` | **~20 ms** |
+
+What `./build.sh` and `./jcalc` do:
+
+- **Compile once:** plain `javac` and `jar` (no Maven) produce `build/calc.jar`.
+- **AOT cache** ([JEP 483](https://openjdk.org/jeps/483), [514](https://openjdk.org/jeps/514),
+  [515](https://openjdk.org/jeps/515), JDK 24–25): one training run with
+  `-XX:AOTCacheOutput` records the classes the CLI loads, already parsed and linked, plus
+  method profiles, in `build/calc.aot`. Later runs map that file instead of redoing the work.
+- **C1 only** (`-XX:TieredStopAtLevel=1`): a short-lived process never benefits from the
+  optimising C2 compiler, so don't start it.
+- **Safe fallback:** the cache is tied to the exact jar and JDK build. `./jcalc` only uses it
+  when it is newer than the jar, and passes `-Xlog:aot*=off`, because a stale cache otherwise
+  makes the JVM print warnings on *stdout*, mixed in with the results.
+
+The two modes behave identically; the test suite runs against both.
 
 **Differences from calc-cli.** No stdin input (`@`, partial expressions, `--rows`) and no
 `--pretty` locale formatting yet. Exact results use `BigInteger`, so `3^100` and `product 1..30` stay
@@ -111,8 +154,9 @@ errors exit with `2` rather than `1`.
 ## Tests
 
 ```sh
-./test.sh
+./test.sh            # from source: about 1.5 minutes
+./test.sh --built    # builds, then tests ./jcalc: about 5 seconds
 ```
 
-176 end-to-end cases, most ported from calc-cli's own tests. Each runs `java Calc.java` exactly as
-a user would and checks stdout, stderr and the exit code, so the run takes a minute or two.
+176 end-to-end cases, most ported from calc-cli's own tests. Each runs the calculator exactly as a
+user would and checks stdout, stderr and the exit code.

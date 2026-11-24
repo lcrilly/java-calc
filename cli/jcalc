@@ -1,0 +1,28 @@
+#!/bin/sh
+# Fast launcher for the precompiled CLI (build it first with ./build.sh).
+# Put this directory on your PATH, or: alias jcalc=/path/to/java-calc/cli/jcalc
+
+# Find the real directory, even when this script is reached through a symlink.
+self=$0
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case $link in /*) self=$link ;; *) self=$(dirname "$self")/$link ;; esac
+done
+dir=$(cd "$(dirname "$self")" && pwd)
+jar=$dir/build/calc.jar
+aot=$dir/build/calc.aot
+
+if [ ! -f "$jar" ]; then
+  echo "jcalc: not built yet; run $dir/build.sh (or use: java $dir/Calc.java)" >&2
+  exit 2
+fi
+if [ -n "$(find "$dir" -maxdepth 1 -name '*.java' -newer "$jar")" ]; then
+  echo "jcalc: the sources have changed since the last build; run $dir/build.sh" >&2
+fi
+
+# Use the AOT cache only if it was built from this jar. -Xlog:aot*=off keeps the JVM from
+# printing cache warnings (for example after a JDK upgrade) on stdout, among the results.
+if [ "$aot" -nt "$jar" ]; then
+  exec java -XX:AOTCache="$aot" -Xlog:aot*=off -XX:TieredStopAtLevel=1 -jar "$jar" "$@"
+fi
+exec java -XX:TieredStopAtLevel=1 -jar "$jar" "$@"

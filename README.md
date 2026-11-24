@@ -13,8 +13,8 @@ side they show how differently the same problem can be solved with the same lang
 
 | Form factor | Directory | What it is | Java on show |
 |-------------|-----------|------------|--------------|
-| **Web app** | [`web/`](web/README.md) | A desktop calculator in the browser, backed by a JSON REST API, shipped as a container | Spring Boot 4, sealed types and record patterns in a service layer, `jdeps` + `jlink` custom runtime |
-| **Command line** | [`cli/`](cli/README.md) | An expression calculator for the shell, with lists, ranges and functions | Compact source files, multi-file source launch (no build step), module imports, a sealed expression tree |
+| **Web app** | [`web/`](web/README.md) | Inspired by **[lcrilly/unit-calculator](https://github.com/lcrilly/unit-calculator)** - a desktop calculator in the browser, backed by a JSON REST API, shipped as a container. | Spring Boot 4, sealed types and record patterns in a service layer, `jdeps` + `jlink` custom runtime |
+| **Command line** | [`cli/`](cli/README.md) | Inspired by **[lcrilly/calc-cli](https://github.com/lcrilly/calc-cli)** - an expression calculator for the shell, with lists, ranges and functions. | Compact source files, multi-file source launch (no build step), module imports, a sealed expression tree, an AOT cache for ~20 ms startup |
 
 Both use exact arithmetic, so `0.1 + 0.2` is exactly `0.3`.
 
@@ -23,7 +23,7 @@ Both use exact arithmetic, so `0.1 + 0.2` is exactly `0.3`.
 You need **JDK 25**. Everything here is developed and tested on
 [Azul Zulu](https://www.azul.com/downloads/?package=jdk) 25:
 
-```sh
+```shell
 brew install --cask zulu@25            # macOS (Homebrew)
 sdk install java 25.0.x-zulu           # or SDKMAN: `sdk list java | grep zulu` for the exact version
 java -version                          # expect "Zulu25..." and "LTS"
@@ -31,9 +31,10 @@ java -version                          # expect "Zulu25..." and "LTS"
 
 Then pick a form factor:
 
-```sh
-cd cli && java Calc.java "2x{3+4}"     # 14, no build needed
-cd web && ./mvnw spring-boot:run       # http://localhost:9000 (Maven is fetched by the wrapper)
+```shell
+cd cli && java Calc.java "2x{3+4}"      # 14, no build needed
+cd cli && ./build.sh && ./jcalc 2x{3+4} # 14, 25× faster once built
+cd web && ./mvnw spring-boot:run        # http://localhost:9000 (Maven is fetched by the wrapper)
 ```
 
 The web app can also run in Docker with no local JDK at all. See [`web/README.md`](web/README.md).
@@ -57,19 +58,9 @@ Where to look for each feature:
 | Text blocks | 15 | `cli` usage text |
 | `BigDecimal` / `BigInteger` exact arithmetic | — | `web` 34-digit decimals; `cli` exact fractions |
 | `jdeps` + `jlink` custom runtime | 9+ | `web/Dockerfile`: a 67 MB runtime of only the modules the app needs |
+| AOT cache (ahead-of-time class loading, linking and method profiles) | 24–25 | `cli/build.sh` and `cli/jcalc`: startup from ~550 ms to ~20 ms |
 
-## Repository layout
-
-```
-java-calc/
-├── README.md        this file
-├── web/             Spring Boot web app + REST API, Dockerfile, Maven build
-│   └── README.md
-└── cli/             command-line calculator, run from source
-    └── README.md
-```
-
-## Possible additions
+## Future development
 
 Ideas for further form factors and experiments, each showing something new:
 
@@ -78,7 +69,3 @@ Ideas for further form factors and experiments, each showing something new:
 - **CRaC** (Coordinated Restore at Checkpoint) on Zulu, for near-instant JVM startup
 - **OpenTelemetry tracing** of the web app, with the Java agent or Spring Boot's own support
 - **stdin pipelines** for the CLI, using the Foreign Function & Memory API to detect a terminal
-
-## License
-
-[MIT](LICENSE)

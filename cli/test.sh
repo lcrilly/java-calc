@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
-# End-to-end tests for the command-line calculator: runs `java Calc.java` exactly as a user
+# End-to-end tests for the command-line calculator: runs it exactly as a user would, either
+# from source (`java Calc.java`, the default) or as the built jar (`./test.sh --built`, which
+# runs ./build.sh first and then tests ./jcalc).
 # would. Most cases are ported from calc-cli (https://github.com/lcrilly/calc-cli), the Rust
 # tool this mirrors. Run from anywhere: cli/test.sh
 set -u
 cd "$(dirname "$0")"
+
+CALC=(java Calc.java)
+if [[ ${1:-} == --built ]]; then
+  ./build.sh >/dev/null || exit 1
+  CALC=(./jcalc)
+fi
+echo "Testing: ${CALC[*]}"
 
 # Unicode arguments (π, √, ²) need a UTF-8 locale; the C-locale behaviour is tested at the end.
 [[ $(locale charmap 2>/dev/null) == UTF-8 ]] || export LC_ALL=C.UTF-8
@@ -17,7 +26,7 @@ trap 'rm -f "$errfile"' EXIT
 t() {
   local want_exit=$1 want_out=${2// /$'\n'} want_err=$3; shift 4
   local out err code
-  out=$(java Calc.java "$@" 2>"$errfile"); code=$?
+  out=$("${CALC[@]}" "$@" 2>"$errfile"); code=$?
   err=$(grep -v '^Picked up' "$errfile")   # the JVM's JAVA_TOOL_OPTIONS notice, if set
   if [[ $code == "$want_exit" && $out == "$want_out" && $err == *"$want_err"* ]]; then
     pass=$((pass + 1)); printf 'PASS  %-34s -> %s\n' "$*" "$(echo ${out:-$err} | head -c 70)"
@@ -219,19 +228,19 @@ t 2 "" "Usage:"                       --
 
 # --help and --version print to stdout and succeed
 for opt in --help -h; do
-  out=$(java Calc.java $opt 2>/dev/null); code=$?
+  out=$("${CALC[@]}" $opt 2>/dev/null); code=$?
   if [[ $code == 0 && $out == Usage:* ]]; then pass=$((pass + 1)); echo "PASS  $opt"; else fail=$((fail + 1)); echo "FAIL  $opt: exit=$code"; fi
 done
-out=$(java Calc.java --version 2>/dev/null); code=$?
+out=$("${CALC[@]}" --version 2>/dev/null); code=$?
 if [[ $code == 0 && $out == "calc (Java) "* ]]; then pass=$((pass + 1)); echo "PASS  --version"; else fail=$((fail + 1)); echo "FAIL  --version: $out"; fi
 
 # The caret points at the offending character
-caret=$(java Calc.java "12+*3" 2>&1 | grep -v '^Picked up' | tail -1)
+caret=$("${CALC[@]}" "12+*3" 2>&1 | grep -v '^Picked up' | tail -1)
 if [[ $caret == "     ^" ]]; then pass=$((pass + 1)); echo "PASS  caret position"; else fail=$((fail + 1)); echo "FAIL  caret position: '$caret'"; fi
 
 # In a C locale the JVM can't decode non-ASCII arguments (macOS always uses UTF-8)
 if [[ $(uname) != Darwin ]]; then
-  out=$(LC_ALL=C LANG=C java Calc.java "√2" 2>&1 | grep -v '^Picked up'); code=$?
+  out=$(LC_ALL=C LANG=C "${CALC[@]}" "√2" 2>&1 | grep -v '^Picked up'); code=$?
   if [[ $out == *"couldn't be decoded"* ]]; then pass=$((pass + 1)); echo "PASS  C locale: non-ASCII argument is reported"; else fail=$((fail + 1)); echo "FAIL  C locale: $out"; fi
 fi
 
